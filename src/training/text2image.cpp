@@ -49,6 +49,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <ctime>
 
 #ifdef _MSC_VER
 #  define putenv(s) _putenv(s)
@@ -86,7 +87,7 @@ static BOOL_PARAM_FLAG(invert, true, "Invert the image");
 static BOOL_PARAM_FLAG(white_noise, true, "Add  Gaussian Noise");
 
 // Distortion to apply to the image.
-static BOOL_PARAM_FLAG(smooth_noise, true, "Smoothen Noise");
+static BOOL_PARAM_FLAG(smooth_noise, true, "Smoothen Noise2");
 
 // Distortion to apply to the image.
 static BOOL_PARAM_FLAG(blur, true, "Blur the image");
@@ -195,6 +196,18 @@ static INT_PARAM_FLAG(glyph_resized_size, 0,
                       "Each glyph is square with this side length in pixels");
 static INT_PARAM_FLAG(glyph_num_border_pixels_to_pad, 0,
                       "Final_size=glyph_resized_size+2*glyph_num_border_pixels_to_pad");
+
+static DOUBLE_PARAM_FLAG(my_rotation, 0.0,
+                         "define rotation in radians");
+
+static INT_PARAM_FLAG(my_blur, 1,
+                         "define blur");
+
+static DOUBLE_PARAM_FLAG(my_noise, 0.0,
+                         "define stdev of noise");
+
+static INT_PARAM_FLAG(my_smooth, 1,
+                         "define blur");
 
 namespace tesseract {
 
@@ -611,8 +624,15 @@ static int Main() {
   std::vector<float> page_rotation;
   const char *to_render_utf8 = src_utf8.c_str();
 
+  //
+  srand(time(0));
+  int myrandom = rand();
+  //printf("random seed=%d", myrandom);
+  //
+
   tesseract::TRand randomizer;
-  randomizer.set_seed(kRandomSeed);
+  //randomizer.set_seed(kRandomSeed);
+  randomizer.set_seed(myrandom);
   std::vector<std::string> font_names;
   // We use a two pass mechanism to rotate images in both direction.
   // The first pass(0) will rotate the images in random directions and
@@ -634,11 +654,12 @@ static int Main() {
             render.RenderToImage(to_render_utf8 + offset, strlen(to_render_utf8 + offset), &pix);
       }
       if (pix != nullptr) {
-        float rotation = 0;
+        float rotation = FLAGS_my_rotation ;
         if (pass == 1) {
           // Pass 2, do mirror rotation.
           rotation = -1 * page_rotation[page_num];
         }
+        printf("rotation: %f", rotation);
         if (FLAGS_degrade_image) {
           pix = DegradeImage(pix, FLAGS_exposure, &randomizer,
                              FLAGS_rotate_image ? &rotation : nullptr);
@@ -646,7 +667,7 @@ static int Main() {
         if (FLAGS_distort_image) {
           // TODO: perspective is set to false and box_reduction to 1.
           pix = PrepareDistortedPix(pix, false, FLAGS_invert, FLAGS_white_noise, FLAGS_smooth_noise,
-                                    FLAGS_blur, 1, &randomizer, nullptr);
+                                    FLAGS_blur, 1, &randomizer, nullptr, FLAGS_my_blur, FLAGS_my_noise, FLAGS_my_smooth);
         }
         render.RotatePageBoxes(rotation);
 
@@ -732,6 +753,7 @@ int main(int argc, char **argv) {
     if ((strcmp(argv[1], "-v") == 0) || (strcmp(argv[1], "--version") == 0)) {
       FontUtils::PangoFontTypeInfo();
       printf("Pango version: %s\n", pango_version_string());
+      printf("valami");
     }
   }
   tesseract::ParseCommandLineFlags(argv[0], &argc, &argv, true);
